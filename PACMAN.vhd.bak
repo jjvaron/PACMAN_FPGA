@@ -1,0 +1,168 @@
+ --Ruler 1         2         3         4         5         6         7        --
+--****************************************************************************--
+--                     PONTIFICIA UNIVERSIDAD JAVERIANA              
+--                            Diseño en FPGA
+-- 													             
+-- Titulo          : Counter_Count_Pixel_X
+-- Funcionalidad   : Contador para generar el PIXEL X                  
+-- Fecha           : D:21 M:04 Y:2021                       
+--****************************************************************************--
+
+
+LIBRARY IEEE;
+USE IEEE.STD_LOGIC_1164.ALL;
+USE IEEE.NUMERIC_STD.ALL;
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+	ENTITY PACMAN IS
+
+	GENERIC(	Max		:	INTEGER:= 10;
+				PIXEL 	: 	INTEGER:= 12);
+		PORT(	
+				clk 			: IN	 STD_LOGIC;
+				rst			: IN	 STD_LOGIC;
+				start			: IN	 STD_LOGIC;
+				up				: IN 	 STD_LOGIC;
+				down			: IN 	 STD_LOGIC;
+				leftt			: IN 	 STD_LOGIC;
+				rightt		: IN 	 STD_LOGIC;
+				hsync     	: OUT  STD_LOGIC;
+            vsync     	: OUT  STD_LOGIC;
+            RGB       	: OUT  STD_LOGIC_VECTOR(PIXEL-1 DOWNTO 0)
+			 );
+
+END ENTITY;
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+ARCHITECTURE Behaviour OF PACMAN IS
+--********************************************************
+ --
+ --*******************************************************
+
+SIGNAL 	up_s 			: STD_LOGIC;
+SIGNAL 	down_s   	: STD_LOGIC;
+SIGNAL 	leftt_s   	: STD_LOGIC;
+SIGNAL 	rightt_s   	: STD_LOGIC;
+SIGNAL 	video_on_s	: STD_LOGIC;
+
+SIGNAL   Collision_s : STD_LOGIC;
+
+SIGNAL  pixel_x_s1	 :  INTEGER;
+SIGNAL  pixel_y_s1	 :  INTEGER;
+SIGNAL  pixel_x_s     :  STD_LOGIC_VECTOR(Max-1 DOWNTO 0);
+SIGNAL  pixel_y_s     :  STD_LOGIC_VECTOR(Max-1 DOWNTO 0);
+SIGNAL  RGB_s         :  STD_LOGIC_VECTOR(PIXEL-1 DOWNTO 0);
+
+SIGNAL pacman_x_s		 : STD_LOGIC_VECTOR(Max-1 DOWNTO 0);
+SIGNAL pacman_y_s		 : STD_LOGIC_VECTOR(Max-1 DOWNTO 0);
+
+BEGIN
+
+
+----------------------------------------------------------
+----------------------------------------------------------
+VGA_Sync:ENTITY WORK.VGA_Controller
+		GENERIC MAP(Max	 => Max)
+		PORT MAP(
+			Clk             => clk,
+			Rst             => rst,
+			video_on        => video_on_s,
+			hsync		       => hsync,
+			vsync	   	    => vsync,
+			pixel_x			 => pixel_x_s,
+			pixel_y  		 => pixel_y_s
+		);
+----------------------------------------------------------
+----------------------------------------------------------		
+Debounce1:ENTITY WORK.Debouncer
+		GENERIC MAP(N 	 => 16, 
+						Max => 25)
+		PORT MAP(
+			clk             => clk,
+			rst             => rst,
+			InputPulse      => up,
+			led		       => up_s
+		);
+----------------------------------------------------------
+----------------------------------------------------------		
+Debounce2:ENTITY WORK.Debouncer
+		GENERIC MAP(N 	 => 16, 
+						Max => 25)
+		PORT MAP(
+			clk             => clk,
+			rst             => rst,
+			InputPulse      => down,
+			led		       => down_s
+		);
+----------------------------------------------------------
+----------------------------------------------------------		
+Debounce3:ENTITY WORK.Debouncer
+		GENERIC MAP(N 	 => 16, 
+						Max => 25)
+		PORT MAP(
+			clk             => clk,
+			rst             => rst,
+			InputPulse      => leftt,
+			led		       => leftt_s
+		);
+----------------------------------------------------------
+----------------------------------------------------------		
+Debounce4:ENTITY WORK.Debouncer
+		GENERIC MAP(N 	 => 16, 
+						Max => 25)
+		PORT MAP(
+			clk             => clk,
+			rst             => rst,
+			InputPulse      => rightt,
+			led		       => rightt_s
+		);
+----------------------------------------------------------
+----------------------------------------------------------		
+Pacmann:ENTITY WORK.Pacman_Ctrl
+		GENERIC MAP(N => Max)
+		PORT MAP(
+			clk             => clk,
+			rst             => rst,
+			up 		       => up_s,
+			down		       => down_s,
+			leftt		       => leftt_s,
+			rightt			 => rightt_s,
+			Collision       => Collision_s,
+			Pacman_x        => Pacman_x_s,
+			Pacman_y        => Pacman_y_s
+		);
+----------------------------------------------------------			
+	Pixel_Gen:ENTITY WORK.Pixel_Generator
+	   GENERIC MAP (Max    	 => Max,
+						 PIXEL 	 => PIXEL,
+						 PAC_Q 	 => 20,
+						 ADDR_PAC => 5)
+		PORT MAP(
+			clk   			 =>  clk, 
+			pixel_x   		 =>  pixel_x_s,
+			pixel_y      	 =>  pixel_y_s,
+			Pacmanx			 =>  Pacman_x_s,
+			PacmanY			 =>  Pacman_y_s,
+			RGB      		 =>  RGB_s
+		);
+		
+----------------------------------------------------------			
+	Collis_Ctrl:ENTITY WORK.Collision_Ctrl
+	   GENERIC MAP (N    	 => 10)
+		PORT MAP(
+		   clk   			 =>  clk, 
+			rst             =>  rst,
+			Pixel_x   		 =>  Pacman_x_s,
+			Pixel_y      	 =>  Pacman_y_s,
+			Collision	    =>  Collision_s
+		);
+	
+	--==========================================================================
+	-- Output Logic
+	--==========================================================================
+	
+ WITH video_on_s SELECT 
+       RGB <= RGB_s WHEN '1',
+		        "000000000000" WHEN OTHERS;   
+
+END ARCHITECTURE;

@@ -1,0 +1,252 @@
+-- Ruler 1         2         3         4         5         6         7        --
+--****************************************************************************--
+--                     PONTIFICIA UNIVERSIDAD JAVERIANA              
+--                            Diseño en FPGA
+-- 													             
+-- Titulo         : Pixel_Generator
+-- Funcionalidad  : Controlador del VGA.                                         
+-- Fecha          : D:21 M:04 Y:2021                       
+--****************************************************************************--
+
+
+LIBRARY IEEE;
+USE IEEE.STD_LOGIC_1164.ALL;
+USE IEEE.NUMERIC_STD.ALL;
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+ENTITY Pixel_Generator IS
+
+	GENERIC(	Max		:	INTEGER:= 10;
+				PIXEL 	: 	INTEGER:= 12;
+				PAC_Q 	:  INTEGER:= 20;
+				ADDR_PAC	:  INTEGER:= 5); 
+		PORT(	
+		      clk 		: IN	STD_LOGIC;
+            pixel_x  : IN  STD_LOGIC_VECTOR(Max-1 DOWNTO 0);
+				pixel_Y  : IN  STD_LOGIC_VECTOR(Max-1 DOWNTO 0);
+				Pacmanx	: IN  STD_LOGIC_VECTOR(Max-1 DOWNTO 0);
+				Pacmany	: IN  STD_LOGIC_VECTOR(Max-1 DOWNTO 0);
+            RGB      : OUT  STD_LOGIC_VECTOR(PIXEL-1 DOWNTO 0)				
+			 );
+
+END ENTITY;
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+ARCHITECTURE Behaviour OF Pixel_Generator IS
+
+	SIGNAL  adr_pacman_R	 : STD_LOGIC_VECTOR(ADDR_PAC-1 DOWNTO 0):=(OTHERS => '0');
+	SIGNAL  adr_pacman_R1 : INTEGER:=0;
+   SIGNAL  pacman_R	 	 : STD_LOGIC_VECTOR(0 TO PAC_Q-1 ):=(OTHERS => '0');
+	SIGNAL  pacman_R1	 	 : INTEGER:=0;
+	SIGNAL  adr_pacman_G	 : STD_LOGIC_VECTOR(ADDR_PAC-1 DOWNTO 0):=(OTHERS => '0');
+	SIGNAL  adr_pacman_G1 : INTEGER:=0;
+   SIGNAL  pacman_G	 	 : STD_LOGIC_VECTOR(0 TO PAC_Q-1 ):=(OTHERS => '0');
+	SIGNAL  pacman_G1	 	 : INTEGER:=0;
+	
+	SIGNAL  adr_cookies_R : STD_LOGIC_VECTOR(3 DOWNTO 0):=(OTHERS => '0');
+	SIGNAL  adr_cookies_R1: INTEGER:=0;
+   SIGNAL  cookies_R	 	 : STD_LOGIC_VECTOR(0 TO 79):=(OTHERS => '0');
+	SIGNAL  cookies_R1	 : INTEGER:=0;
+	SIGNAL  adr_cookies_G : STD_LOGIC_VECTOR(3 DOWNTO 0):=(OTHERS => '0');
+	SIGNAL  adr_cookies_G1: INTEGER:=0;
+   SIGNAL  cookies_G	 	 : STD_LOGIC_VECTOR(0 TO  79):=(OTHERS => '0');
+	SIGNAL  cookies_G1	 : INTEGER:=0;
+	SIGNAL  adr_cookies_B : STD_LOGIC_VECTOR(3 DOWNTO 0):=(OTHERS => '0');
+	SIGNAL  adr_cookies_B1: INTEGER:=0;
+   SIGNAL  cookies_B	 	 : STD_LOGIC_VECTOR(0 TO  79):=(OTHERS => '0');
+	SIGNAL  cookies_B1	 : INTEGER:=0;
+	SIGNAL  q_galleta		 : STD_LOGIC_VECTOR(0 TO 79):=(OTHERS => '0');
+	
+	SIGNAL  adr_Block_B	 : STD_LOGIC_VECTOR(8 DOWNTO 0);
+	SIGNAL  adr_Block_B1  : INTEGER;
+   SIGNAL  Block_B	 	 : STD_LOGIC_VECTOR(0 TO 255);
+	SIGNAL  Block_B1	 	 : INTEGER;
+	SIGNAL  adr_Block_B_L : STD_LOGIC_VECTOR(8 DOWNTO 0);
+	SIGNAL  adr_Block_B1_L: INTEGER;
+   SIGNAL  Block_B_L	 	 : STD_LOGIC_VECTOR(255 DOWNTO 0);
+	SIGNAL  Block_B1_L	 : INTEGER;
+	
+	SIGNAL  adr_Ghost_R	 : STD_LOGIC_VECTOR(4 DOWNTO 0):=(OTHERS => '0');
+	SIGNAL  adr_Ghost_R1 : INTEGER:=0;
+	SIGNAL  adr_Ghost_G	 : STD_LOGIC_VECTOR(4 DOWNTO 0):=(OTHERS => '0');
+	SIGNAL  adr_Ghost_G1  : INTEGER:=0;
+	SIGNAL  adr_Ghost_B	 : STD_LOGIC_VECTOR(4 DOWNTO 0):=(OTHERS => '0');
+	SIGNAL  adr_Ghost_B1  : INTEGER:=0;
+   SIGNAL  Ghost_R	 	 : STD_LOGIC_VECTOR(19 DOWNTO 0):=(OTHERS => '0');
+	SIGNAL  Ghost_R1	 	 : INTEGER:=0;
+   SIGNAL  Ghost_B	 	 : STD_LOGIC_VECTOR(19 DOWNTO 0):=(OTHERS => '0');
+	SIGNAL  Ghost_B1	 	 : INTEGER:=0;
+	SIGNAL  Ghost_G	 	 : STD_LOGIC_VECTOR(19 DOWNTO 0):=(OTHERS => '0');
+	SIGNAL  Ghost_G1	 	 : INTEGER:=0;
+	
+	SIGNAL    pixel_x_s1	    : INTEGER;
+	SIGNAL    pixel_y_s1	    : INTEGER;
+	SIGNAL    anclaPacx	 	 : INTEGER;
+	SIGNAL    anclaPacy		 : INTEGER;
+	
+	CONSTANT  anclaBlockx	 : INTEGER:= 20;
+	CONSTANT  anclaBlocky	 : INTEGER:= 1;
+	
+   CONSTANT  anclaBlocky_L	 : INTEGER:= 1;
+	CONSTANT  anclaBlockx_L	 : INTEGER:= 350;
+	
+	CONSTANT  anclaGhostx 	 : INTEGER:= 300;
+	CONSTANT  anclaGhosty 	 : INTEGER:= 200;
+	
+	CONSTANT  anclaCookiex 	 : INTEGER:= 480;
+	CONSTANT  anclaCookiey 	 : INTEGER:= 150;
+	
+	SIGNAL 	 PrioriImg	    : STD_LOGIC_VECTOR (1 DOWNTO 0);
+	SIGNAL 	 Personajes	    : STD_LOGIC_VECTOR (1 DOWNTO 0);
+	
+	
+BEGIN
+
+	-----------------------------------------------------------------------------
+	Pacman_Rojo:ENTITY WORK.Pacman_Red 
+		PORT MAP(
+			address => adr_pacman_R,
+			clock	  => clk,
+			q		  => pacman_R
+		);
+
+	-----------------------------------------------------------------------------
+	Pacman_Verde:ENTITY WORK.Pacman_Red 
+		PORT MAP(
+			address => adr_pacman_G,
+			clock	  => clk,
+			q		  => pacman_G
+		);
+	-----------------------------------------------------------------------------
+	C_derechaB:ENTITY WORK.C_Right_Blue
+		PORT MAP(
+			address => adr_Block_B,
+			clock	  => clk,
+			q		  => Block_B
+		);
+	-----------------------------------------------------------------------------
+	C_IzqB:ENTITY WORK.C_Right_Blue
+		PORT MAP(
+			address => adr_Block_B_L,
+			clock	  => clk,
+			q		  => Block_B_L
+		);
+	-----------------------------------------------------------------------------
+	FantasmaR:ENTITY WORK.GhostRed
+		PORT MAP(
+			address => adr_Ghost_R,
+			clock	  => clk,
+			q		  => Ghost_R
+		);
+
+	-----------------------------------------------------------------------------
+	FantasmaB:ENTITY WORK.GhostBlue
+		PORT MAP(
+			address => adr_Ghost_B,
+			clock	  => clk,
+			q		  => Ghost_B
+		);	
+   -----------------------------------------------------------------------------
+	FantasmaG:ENTITY WORK.GhostGreen
+		PORT MAP(
+			address => adr_Ghost_G,
+			clock	  => clk,
+			q		  => Ghost_G
+		);	
+	-----------------------------------------------------------------------------
+	GalletasR:ENTITY WORK.Cookies_Red
+		PORT MAP(
+			address => adr_cookies_R,
+			clock	  => clk,
+			q		  => Cookies_R
+		);	
+	-----------------------------------------------------------------------------
+	GalletasG:ENTITY WORK.Cookies_GB
+		PORT MAP(
+			address => adr_cookies_G,
+			clock	  => clk,
+			q		  => Cookies_G
+		);	
+	-----------------------------------------------------------------------------
+	-----------------------------------------------------------------------------
+	GalletasB:ENTITY WORK.Cookies_B
+		PORT MAP(
+			address => adr_cookies_B,
+			clock	  => clk,
+			q		  => Cookies_B
+		);	
+	-----------------------------------------------------------------------------
+	--==========================================================================
+	-- Output Logic
+	--==========================================================================
+	pixel_x_s1   <= TO_INTEGER(UNSIGNED(pixel_x));
+	pixel_y_s1 	 <= TO_INTEGER(UNSIGNED(pixel_y));
+	AnclaPacx    <= TO_INTEGER(UNSIGNED(Pacmanx));
+	AnclaPacy 	 <= TO_INTEGER(UNSIGNED(Pacmany));
+	
+	adr_pacman_R <= STD_LOGIC_VECTOR(TO_UNSIGNED(adr_pacman_R1,ADDR_PAC));
+	adr_pacman_G <= STD_LOGIC_VECTOR(TO_UNSIGNED(adr_pacman_G1,ADDR_PAC));
+	
+	adr_Block_B   <= STD_LOGIC_VECTOR(TO_UNSIGNED(adr_Block_B1,9));
+	adr_Block_B_L <= STD_LOGIC_VECTOR(TO_UNSIGNED(adr_Block_B1_L,9));
+
+	
+	adr_Ghost_R <= STD_LOGIC_VECTOR(TO_UNSIGNED(adr_Ghost_R1,4));
+	adr_Ghost_B <= STD_LOGIC_VECTOR(TO_UNSIGNED(adr_Ghost_B1,5));
+	adr_Ghost_G <= STD_LOGIC_VECTOR(TO_UNSIGNED(adr_Ghost_G1,5));
+	
+	adr_Cookies_R <= STD_LOGIC_VECTOR(TO_UNSIGNED(adr_Cookies_R1,4));
+	adr_Cookies_G <= STD_LOGIC_VECTOR(TO_UNSIGNED(adr_Cookies_G1,4));
+	adr_Cookies_B <= STD_LOGIC_VECTOR(TO_UNSIGNED(adr_Cookies_B1,4));
+	
+	
+	PrioriImg <= "01" WHEN (( (pixel_x_s1 >= anclaBlockx) AND (pixel_x_s1 < (AnclaBlockx+256)) ) AND ( (pixel_y_s1 >= AnclaBlocky) AND (pixel_y_s1 < (AnclaBlocky+ 480)) )) ELSE
+					 "10" WHEN (( (pixel_x_s1 >= AnclaBlockx_L) AND (pixel_x_s1 < (AnclaBlockx_L+256)) ) AND ( (pixel_y_s1 >= AnclaBlocky_L AND pixel_y_s1 < (AnclaBlocky_L+ 480)) )) ELSE
+					 "00" ;
+					 
+	Personajes <="01" WHEN (( (pixel_x_s1 >= AnclaPacx)   AND (pixel_x_s1 < (AnclaPacx+20)) ) AND ((pixel_y_s1 >= AnclaPacy) AND (pixel_y_s1 < (AnclaPacy + 20)) )) ELSE --
+					 "10" WHEN (( (pixel_x_s1 >= anclaGhostx) AND (pixel_x_s1 < (anclaGhostx+20)) ) AND ((pixel_y_s1 >= anclaGhosty) AND (pixel_y_s1 < (anclaGhosty+ 20)) ))ELSE
+					 "11" WHEN (( (pixel_x_s1 >= anclaCookiex) AND (pixel_x_s1 < (anclaCookiex+32)) ) AND ((pixel_y_s1 >= anclaCookiey) AND (pixel_y_s1 < (anclaCookiey+ 16)) ))ELSE
+					 "00" ;	 
+					 
+	adr_pacman_R1 <= pixel_y_s1 - AnclaPacy WHEN Personajes = "01" ELSE 0;
+	pacman_R1     <= pixel_x_s1 - AnclaPacx WHEN Personajes = "01" ELSE 0;
+	adr_pacman_G1 <= pixel_y_s1 - AnclaPacy WHEN Personajes = "01" ELSE 0;
+	pacman_G1     <= pixel_x_s1 - AnclaPacx WHEN Personajes = "01" ELSE 0;
+	
+	
+	adr_Ghost_R1 <= pixel_y_s1 - anclaGhosty WHEN Personajes = "10" ELSE 0;
+	Ghost_R1 	 <= pixel_x_s1 - anclaGhostx WHEN Personajes = "10" ELSE 0;
+	adr_Ghost_B1 <= pixel_y_s1 - anclaGhosty WHEN Personajes = "10" ELSE 0;
+	Ghost_B1 	 <= pixel_x_s1 - anclaGhostx WHEN Personajes = "10" ELSE 0;
+	adr_Ghost_G1 <= pixel_y_s1 - anclaGhosty WHEN Personajes = "10" ELSE 0;
+	Ghost_G1 	 <= pixel_x_s1 - anclaGhostx WHEN Personajes = "10" ELSE 0;
+	
+	
+	adr_Block_B1   <= pixel_y_s1 - AnclaBlocky WHEN PrioriImg = "01" ELSE 0;
+	Block_B1 	   <= pixel_x_s1 - AnclaBlockx WHEN PrioriImg = "01" ELSE 0;
+	
+	adr_Block_B1_L <= pixel_y_s1 - AnclaBlocky_L WHEN PrioriImg = "10" ELSE 0;
+	Block_B1_L	   <= pixel_x_s1 - AnclaBlockx_L WHEN PrioriImg = "10" ELSE 0;
+	
+	adr_cookies_R1 <= pixel_y_s1 - anclaCookiey WHEN Personajes = "11" ELSE 0;
+	Cookies_R1 	   <= pixel_x_s1 - anclaCookiex WHEN Personajes = "11" ELSE 0;
+	adr_cookies_G1 <= pixel_y_s1 - anclaCookiey WHEN Personajes = "11" ELSE 0;
+	Cookies_G1 	   <= pixel_x_s1 - anclaCookiex WHEN Personajes = "11" ELSE 0;
+   adr_cookies_B1 <= pixel_y_s1 - anclaCookiey WHEN Personajes = "11" ELSE 0;
+	Cookies_B1 	   <= pixel_x_s1 - anclaCookiex WHEN Personajes = "11" ELSE 0;
+	
+	
+	
+	 RGB(3 DOWNTO 0) <= "1111" WHEN  ((Personajes = "01" AND Pacman_R(Pacman_R1) = '1')  OR (Personajes= "10" AND Ghost_R(Ghost_R1) = '1') OR (Personajes= "11" AND Cookies_R(Cookies_R1) = '1')) ELSE --rojo--
+							  "0000";  
+
+    RGB(7 DOWNTO 4) <= "1111" WHEN ((Personajes = "01" AND Pacman_G(Pacman_G1) = '1') OR (Personajes= "10" AND Ghost_G(Ghost_G1) = '1') OR (Personajes = "11" AND Cookies_G(Cookies_G1) = '1')) ELSE --verde
+                       "0000";
+
+    RGB(11 DOWNTO 8) <= "1111" WHEN ((Personajes= "10" AND Ghost_B(Ghost_B1) = '1') OR (Personajes = "11" AND Cookies_B(Cookies_B1) = '1')  OR (PrioriImg = "01" AND Block_B(Block_B1) = '1') OR (PrioriImg = "10" AND Block_B_L(Block_B1_L) = '1')) ELSE -- --azul
+                        "0000";
+
+		
+  
+END ARCHITECTURE;
