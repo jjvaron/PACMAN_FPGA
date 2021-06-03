@@ -1,0 +1,143 @@
+-- Ruler 1         2         3         4         5         6         7        --
+--****************************************************************************--
+--                     PONTIFICIA UNIVERSIDAD JAVERIANA              
+--                            Diseño en FPGA
+-- 													             
+-- Titulo :   Crónometro LJP
+-- Funcionalidad: Crónometro que cuenta de 00.0 a 99.9 y se reinicia                                          
+-- Fecha  :   D:07 M:03 Y:2021                       
+--****************************************************************************--
+
+
+LIBRARY IEEE;
+USE IEEE.STD_LOGIC_1164.ALL;
+USE IEEE.NUMERIC_STD.ALL;
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+ENTITY BCD_CONVERTER IS
+
+	GENERIC(	Max			:	INTEGER:= 13);
+		PORT(	
+		      clk 		   : IN	STD_LOGIC;
+				enable		: IN	STD_LOGIC;
+				rst			: IN  STD_LOGIC;
+				Fibonnacci	: IN 	STD_LOGIC_VECTOR(Max-1 DOWNTO 0);
+				SevenSeg3	: OUT STD_LOGIC_VECTOR(6 DOWNTO 0);
+				SevenSeg2	: OUT STD_LOGIC_VECTOR(6 DOWNTO 0);
+				SevenSeg1	: OUT STD_LOGIC_VECTOR(6 DOWNTO 0);
+				SevenSeg0	: OUT STD_LOGIC_VECTOR(6 DOWNTO 0)
+			 );
+
+END ENTITY;
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+ARCHITECTURE Behaviour OF BCD_CONVERTER IS
+	SIGNAL Mil_out		  : STD_LOGIC_VECTOR(Max-1 DOWNTO 0);
+	SIGNAL Cent_out	  : STD_LOGIC_VECTOR(Max-1 DOWNTO 0);
+	SIGNAL Dec_out		  : STD_LOGIC_VECTOR(Max-1 DOWNTO 0);
+	SIGNAL Unit_out	  : STD_LOGIC_VECTOR(Max-1 DOWNTO 0);
+	SIGNAL in_cent		  : STD_LOGIC_VECTOR(Max-1 DOWNTO 0);
+	SIGNAL in_dec		  : STD_LOGIC_VECTOR(Max-1 DOWNTO 0);
+	
+	SIGNAL en_count	  : STD_LOGIC;
+	SIGNAL SynClr	  	  : STD_LOGIC;
+	SIGNAL MaxTick_S	  : STD_LOGIC;
+	SIGNAL enable7Seg_S : STD_LOGIC_VECTOR(3 DOWNTO 0);
+	SIGNAL CurrentCount 	 :	STD_LOGIC_VECTOR(25 DOWNTO 0);
+	SIGNAL FixedData    	 : STD_LOGIC_VECTOR(25 DOWNTO 0):="00000000000000000000000000";
+	CONSTANT CountUp	  	 : STD_LOGIC:='1';
+	CONSTANT FixedLoad  	 : STD_LOGIC:='0';
+	SIGNAL MinTick_S 	  	 :	STD_LOGIC;
+	
+BEGIN
+	------------------------------------------------
+	Div_Mil:ENTITY WORK.Division 
+	PORT MAP(
+		clock	 	 => clk,
+		denom		 => "0001111101000",
+		numer		 => Fibonnacci,
+		quotient	 => Mil_out,
+		remain	 => in_cent
+	);
+	------------------------------------------------
+	Div_Cent:ENTITY WORK.Division 
+	PORT MAP(
+		clock	 	 => clk,
+		denom		 => "0000001100100",
+		numer		 => in_cent,
+		quotient	 => Cent_out,
+		remain	 => in_dec
+	);
+
+	------------------------------------------------
+	Div_Dec: ENTITY WORK.Division 
+	PORT MAP(
+		clock	 	 => clk,
+		denom		 => "0000000001010",
+		numer		 => in_dec,
+		quotient	 => Dec_out,
+		remain	 => Unit_out
+	);
+
+	------------------------------------------------
+	One_Sec:ENTITY WORK.One_s_Counter
+
+	GENERIC MAP(	N			=> 	26)
+		PORT MAP(	
+				Clk 		=> clk,
+				Rst		=> rst,
+				Ena		=> en_count,
+				SynClr	=> SynClr,
+				Load		=> FixedLoad,
+				Up			=> CountUp,
+				D			=> FixedData,
+				MaxTick	=> MaxTick_S,
+				MinTick	=> MinTick_S,
+				Counter	=> CurrentCount
+			 );
+
+	------------------------------------------------
+	SS_control: ENTITY WORK.SS_Controller
+
+		PORT MAP(	
+					clk 				 => clk,
+					rst		       => rst,
+					enable          => enable,
+					MaxTick_S       => MaxTick_S,
+					enable7Seg		 => enable7Seg_S,		
+					SynClrCounter   => SynClr,
+					enable_counters => en_count
+				 );
+
+
+	------------------------------------------------
+
+	Seg_Mills: ENTITY WORK.sevenSegmentDecoder 
+	PORT MAP (
+				 enable	=> enable7Seg_S(0),
+				 input 	=> Mil_out,
+				 output	=> SevenSeg3
+				 );
+ ------------------------------------------------	
+	Seg_Centen: ENTITY WORK.sevenSegmentDecoder 
+	PORT MAP (
+				 enable	=> enable7Seg_S(1),
+				 input 	=> Cent_out,
+				 output	=> SevenSeg2
+				 );
+  ------------------------------------------------	
+	Seg_Decen: ENTITY WORK.sevenSegmentDecoder 
+	PORT MAP (
+				 enable	=> enable7Seg_S(2),
+				 input 	=> Dec_out,
+				 output	=> SevenSeg1
+				 );
+ ------------------------------------------------	
+	Seg_Unidad: ENTITY WORK.sevenSegmentDecoder 
+	PORT MAP (
+				 enable	=> enable7Seg_S(3),
+				 input 	=> Unit_out,
+				 output	=> SevenSeg0
+				 );
+	
+END ARCHITECTURE;
