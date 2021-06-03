@@ -1,0 +1,82 @@
+-- Ruler 1         2         3         4         5         6         7        --
+--****************************************************************************--
+--                     PONTIFICIA UNIVERSIDAD JAVERIANA              
+--                            Diseño en FPGA
+-- 													             
+-- Titulo :   Crontrol_Ena
+-- Funcionalidad: Crontrol de los enables de los contadores del cronometro                                          
+-- Fecha  :   D:08 M:03 Y:2021                       
+--****************************************************************************--
+
+
+LIBRARY IEEE;
+USE IEEE.STD_LOGIC_1164.ALL;
+USE IEEE.NUMERIC_STD.ALL;
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+ENTITY SS_Controller IS
+
+		PORT(	
+		      clk 		            : IN		STD_LOGIC;
+				rst		            : IN		STD_LOGIC;
+				enable               : IN     STD_LOGIC;
+				MaxTick_S            : IN     STD_LOGIC;
+				enable7Seg				: OUT		STD_LOGIC_VECTOR(3 DOWNTO 0);		
+				SynClrCounter        : OUT    STD_LOGIC;
+				enable_counters		: OUT		STD_LOGIC
+			 );
+
+END ENTITY;
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+ARCHITECTURE Behaviour OF SS_Controller IS
+
+	TYPE state IS ( One, Two);
+	SIGNAL	pr_state, nx_state : state;
+	
+BEGIN
+
+	lower_fsm: PROCESS (clk, rst)
+	BEGIN
+		IF (rst = '1') THEN
+			pr_state <= one;
+		ELSIF (rising_edge(clk)) THEN
+			pr_state <= nx_state;
+		END IF;
+	END PROCESS lower_fsm;
+	
+	--========================================================
+	--Upper part FSM
+	--========================================================
+	upper_fsm: PROCESS(pr_state, clk, MaxTick_S,enable)
+	BEGIN
+		CASE pr_state IS
+			------------------------------------------------------
+			WHEN One => 
+				SynClrCounter  <= '1';
+				enable_counters<= '0';
+				enable7Seg 		<= "0000";
+						
+				IF (enable = '1') THEN 
+					nx_state	<=	one;					
+				ELSE 					
+						nx_state		<=	Two;	
+					END IF;
+
+			------------------------------------------------------
+			WHEN Two =>
+				SynClrCounter  <= '0';
+				enable_counters<= '1';
+				enable7Seg 		<= "1111";
+				
+				IF(MaxTick_S = '1')THEN 
+					nx_state	<=	one;
+				 ELSE					
+					nx_state		<=	Two;
+				END IF;	
+		
+		END CASE;
+	END PROCESS;
+
+
+END ARCHITECTURE;
